@@ -20,12 +20,14 @@ interface GitHubDeployModalProps {
 export const GitHubDeployModal: React.FC<GitHubDeployModalProps> = ({ onClose }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  const gitCommands = `git init
-git add .
-git commit -m "Chittagong Dredger Owners Association - Supervisor Attendance System"
-git branch -M main
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git
-git push -u origin main`;
+  const repoUrl = 'https://github.com/ctgdredging/cdma-supervisor-attendance';
+  const pagesUrl = 'https://ctgdredging.github.io/cdma-supervisor-attendance/';
+
+  const gitCommands = `git add .
+git commit -m "Update supervisor attendance and salary system"
+git push origin main`;
+
+  const tokenPushCommand = `git push https://<YOUR_GITHUB_TOKEN>@github.com/ctgdredging/cdma-supervisor-attendance.git main`;
 
   const copyCommand = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
@@ -93,11 +95,11 @@ git push -u origin main`;
                   ১
                 </span>
                 <span className="font-bold text-slate-800">
-                  GitHub-এ একটি নতুন রিপোজিটরি (Repository) তৈরি করুন:
+                  আপনার গিটহাব রিপোজিটরি (Repository):
                 </span>
               </div>
               <p className="text-slate-600 pl-8 text-xs leading-relaxed">
-                আপনার ব্রাউজারে <a href="https://github.com/new" target="_blank" rel="noopener noreferrer" className="text-cyan-700 font-semibold underline inline-flex items-center gap-0.5">github.com/new <ExternalLink className="w-3 h-3" /></a> লিংকে যান এবং রিপোজিটরির নাম দিন (যেমন: <code className="bg-white px-1.5 py-0.5 border rounded">dredger-attendance</code>)। এটি পাবলিক (Public) রাখুন।
+                আপনার রিপোজিটরি লিংক: <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-700 font-semibold underline inline-flex items-center gap-0.5">{repoUrl} <ExternalLink className="w-3 h-3" /></a>
               </p>
             </div>
 
@@ -109,7 +111,7 @@ git push -u origin main`;
                     ২
                   </span>
                   <span className="font-bold text-slate-800">
-                    টার্মিনাল বা কমান্ড প্রম্পটে কোড গিটহাবে পুশ করুন:
+                    কোড পুশ করার কমান্ড (GitHub Push):
                   </span>
                 </div>
                 <button
@@ -122,12 +124,15 @@ git push -u origin main`;
                 </button>
               </div>
 
-              <div className="pl-8">
+              <div className="pl-8 space-y-2">
                 <pre className="p-3 bg-slate-900 text-cyan-300 font-mono text-xs rounded-lg overflow-x-auto leading-relaxed shadow-inner">
                   {gitCommands}
                 </pre>
-                <p className="text-[11px] text-slate-700 mt-1.5">
-                  *(এখানে <code className="text-cyan-800 font-semibold">YOUR_GITHUB_USERNAME</code> এবং <code className="text-cyan-800 font-semibold">YOUR_REPO_NAME</code> এর জায়গায় আপনার নাম ও রিপোর নাম দিন)*
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  * অথবা টোকেন দিয়ে সরাসরি পুশ করতে: <br />
+                  <code className="text-slate-800 bg-slate-200 px-1 py-0.5 rounded font-mono text-[10px]">
+                    {tokenPushCommand}
+                  </code>
                 </p>
               </div>
             </div>
@@ -139,19 +144,18 @@ git push -u origin main`;
                   ৩
                 </span>
                 <span className="font-bold text-slate-800">
-                  GitHub Settings-এ গিয়ে Pages সোর্স চালু করুন:
+                  আপনার লাইভ GitHub Pages ওয়েবসাইট লিংক:
                 </span>
               </div>
               <div className="pl-8 text-slate-600 space-y-1.5 text-xs leading-relaxed">
-                <p>
-                  • আপনার রিপোজিটরির <strong>Settings</strong> ট্যাবে যান &gt; বাম পাশের মেনু থেকে <strong>Pages</strong> এ ক্লিক করুন।
-                </p>
-                <p>
-                  • <strong>Build and deployment &gt; Source</strong> অপশনে &quot;Deploy from a branch&quot; এর বদলে <strong>&quot;GitHub Actions&quot;</strong> নির্বাচন করুন।
-                </p>
                 <p className="text-emerald-800 font-semibold flex items-center gap-1 pt-1">
                   <Globe className="w-4 h-4 text-emerald-600" />
-                  <span>ব্যাস! ১ মিনিটের মধ্যে আপনার সাইট লাইভ হয়ে যাবে: <code className="bg-white px-2 py-0.5 border rounded text-emerald-900">https://yourusername.github.io/dredger-attendance/</code></span>
+                  <a href={pagesUrl} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">
+                    {pagesUrl} <ExternalLink className="w-3 h-3" />
+                  </a>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Settings &gt; Pages-এ Source অপশন &apos;GitHub Actions&apos; নির্বাচন করা থাকলে কোড পুশ হওয়ামাত্র স্বয়ংক্রিয়ভাবে এই ঠিকানায় সাইট আপডেট হয়ে যায়।
                 </p>
               </div>
             </div>
