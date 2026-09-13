@@ -13,8 +13,13 @@ export function calculateMonthlyReport(
   const monthStr = String(month).padStart(2, '0');
   const monthPrefix = `${year}-${monthStr}`;
 
-  // Filter day entries for this year and month
-  const monthDates = Object.keys(attendanceData).filter((d) => d.startsWith(monthPrefix));
+  // Filter day entries for this year and month that are officially approved by office
+  const monthDates = Object.keys(attendanceData).filter((d) => {
+    if (!d.startsWith(monthPrefix)) return false;
+    const record = attendanceData[d];
+    // Must be approved by office
+    return record && (record.approvalStatus === 'approved' || !record.approvalStatus);
+  });
   const daysRecorded = monthDates.length;
 
   return supervisors.map((supervisor) => {

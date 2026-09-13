@@ -283,24 +283,43 @@ export const MonthlySalarySheet: React.FC<MonthlySalarySheetProps> = ({
                 • <strong>মূল বেতন:</strong> সকল সুপারভাইজারের মাসিক নির্ধারিত মূল বেতন <strong>২০,০০০ টাকা</strong>।
               </div>
               <div>
-                • <strong>মাসিক ১ দিন ফ্রি ছুটি:</strong> মাসের মোট অনুপস্থিতি থেকে <strong>১ দিন ফ্রি ছুটি</strong> বাদ দিয়ে অবশিষ্ট বেতন হিসাব করা হয়।
+                • <strong>দৈনিক কর্তনের হার:</strong> ২০,০০০ ÷ ৩০ = <strong>৬৬৬.৬৭ টাকা / দিন</strong>।
               </div>
               <div>
-                • <strong>প্রতি সোমবার ২৪ ঘণ্টা ডাবল ডিউটি:</strong> যে গ্রুপের ২৪ ঘণ্টা ডিউটি থাকবে, সেদিন অনুপস্থিত থাকলে <strong className="text-rose-800 underline">২ দিনের বেতন কর্তন (৳ ১,৩৩৩.৩৩)</strong> হিসাব করা হবে।
+                • <strong>মাসিক ফ্রি ছুটি:</strong> মাসে মোট <strong>১ দিন</strong> ফ্রি ছুটি অনুমোদিত (বেতন কর্তন ছাড়া)।
               </div>
               <div>
-                • <strong>সোমবারে ২৪ ঘণ্টা ছুটি:</strong> অপর গ্রুপ সোমবারে ২৪ ঘণ্টা শিফটিং ছুটি পাবে যা সবেতন উপস্থিত গণ্য এবং এর সাথে ১ দিন ফ্রি ছুটির কোনো সম্পর্ক নেই।
+                • <strong className="text-rose-800">সোমবারের ২৪ ঘণ্টা ডিউটি:</strong> অনুপস্থিত থাকলে <strong>২ দিনের বেতন (১,৩৩৩.৩৩ ৳) কর্তন</strong> হবে।
               </div>
               <div>
-                • <strong>সাপ্তাহিক শিফট বদল:</strong> সোমবারে শিফট বদল হয়। মঙ্গলবারে অন্য গ্রুপ দিনের বেলায় দায়িত্ব নিয়ে পরবর্তী সোমবারে ২৪ ঘণ্টা ডিউটি করবে।
+                • <strong>সোমবারে ২৪ ঘণ্টা ছুটি:</strong> অপর গ্রুপ সোমবারে ২৪ ঘণ্টা শিফটিং ছুটি পাবে যা সবেতন উপস্থিত গণ্য।
               </div>
               <div>
-                • <strong>সাধারণ অনুপস্থিতি কর্তন:</strong> সোমবারে ২৪ ঘণ্টা ছাড়া অন্যান্য দিনে অনুপস্থিতির জন্য ১ দিনের বেতন কর্তন হার <strong>{toBengaliNumber(DEDUCTION_PER_DAY)} টাকা</strong>।
+                • <strong>সাপ্তাহিক শিফট বদল:</strong> প্রতি সোমবারে ২৪ ঘণ্টা ডিউটির মাধ্যমে গ্রুপ-এ ও গ্রুপ-বি-এর দিন/রাত শিফট অদলবদল হয়।
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Notice if no approved records exist yet for this month */}
+      {reportList[0]?.daysRecorded === 0 && (
+        <div className="bg-cyan-50/90 border border-cyan-300 rounded-xl p-4 text-cyan-950 flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-cyan-100 border border-cyan-300 flex items-center justify-center text-cyan-800 font-bold shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-cyan-950">
+                {BENGALI_MONTHS[selectedMonth - 1]}, {toBengaliNumber(selectedYear)} মাসের কোনো অনুমোদিত হাজিরা এখনো নেই (নতুন ফ্রেশ রেকর্ড শুরু)
+              </p>
+              <p className="text-xs text-cyan-800 mt-0.5">
+                ১ সেপ্টেম্বর থেকে &quot;দৈনিক হাজিরা ফরম&quot;-এ হাজিরা পূরণ করে জমা দিন। অফিস কর্তৃপক্ষ অনুমোদন দিলেই স্বয়ংক্রিয়ভাবে এখানে উপস্থিতি ও কর্তনের হিসাব প্রদর্শিত হবে।
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Key Metric Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 no-print">

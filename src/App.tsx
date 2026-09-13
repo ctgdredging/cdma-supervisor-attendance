@@ -20,18 +20,21 @@ import {
   getTodayDateString,
   getCurrentYearMonth,
   toBengaliNumber,
+  formatBengaliDate,
 } from './utils/bengaliUtils';
 import { RotateCcw, ShieldCheck, Github, MessageCircle, Lock } from 'lucide-react';
 
 const STORAGE_KEY_SUPERVISORS = 'cdma_supervisors_v2';
-const STORAGE_KEY_ATTENDANCE = 'cdma_attendance_records_v2';
-const STORAGE_KEY_PENDING = 'cdma_pending_submissions_v2';
+// Clean storage keys without any demo/sample attendance data so user fills from September 01
+const STORAGE_KEY_ATTENDANCE = 'cdma_attendance_records_v3_clean';
+const STORAGE_KEY_PENDING = 'cdma_pending_submissions_v3_clean';
 const STORAGE_KEY_PIN = 'cdma_office_pin_v2';
 const DEFAULT_OFFICE_PIN = '1234';
 
 export default function App() {
   const { year: currentYear, month: currentMonth } = getCurrentYearMonth();
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
+  // Default to September 01 as requested by user ("ami September 01 tarikh theke sob fill up korbo")
+  const [selectedDate, setSelectedDate] = useState<string>(() => `${currentYear}-09-01`);
   const [activeTab, setActiveTab] = useState<AppTab>('attendance');
   const [showGitHubModal, setShowGitHubModal] = useState<boolean>(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
@@ -55,12 +58,19 @@ export default function App() {
     }
   });
 
-  // Supervisors state with local storage
+  // Supervisors state with local storage (preserving user updated phone numbers)
   const [supervisors, setSupervisors] = useState<Supervisor[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SUPERVISORS);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed: Supervisor[] = JSON.parse(saved);
+        return INITIAL_SUPERVISORS.map((init) => {
+          const match = parsed.find((p) => p.id === init.id || p.name === init.name);
+          return {
+            ...init,
+            phone: match?.phone || init.phone,
+          };
+        });
       }
     } catch (e) {
       console.error('Failed to load supervisors from localStorage', e);
@@ -68,7 +78,7 @@ export default function App() {
     return INITIAL_SUPERVISORS;
   });
 
-  // Approved attendance data state with local storage
+  // Approved attendance data state with local storage (clean, no dummy data)
   const [attendanceData, setAttendanceData] = useState<Record<string, DayAttendance>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
@@ -151,6 +161,7 @@ export default function App() {
       submittedAt: new Date().toISOString(),
     };
     setPendingSubmissions((prev) => [newSubmission, ...prev.filter((p) => p.date !== submission.date)]);
+    alert(`✅ সফল! ${formatBengaliDate(submission.date)} তারিখের হাজিরা অফিস কর্তৃপক্ষের অনুমোদনের জন্য দাখিল করা হয়েছে।\nপূরণকারী: ${submission.submittedBy} (${submission.supervisorPhone || 'মোবাইল নেই'})।\n\nঅফিস কর্তৃপক্ষ 'অফিস অনুমোদন' প্যানেল থেকে অনুমোদন করলেই এটি মূল বেতন রেজিস্টারে যুক্ত হবে।`);
   };
 
   // 2. Office Authority approves submission -> commits to attendanceData & storage!
@@ -246,27 +257,53 @@ export default function App() {
     setActiveTab('attendance');
   };
 
-  // Reset to initial 10 supervisors
+  // Reset to initial 10 supervisors (Office Authority only)
   const handleResetToDefaultSupervisors = () => {
-    setSupervisors(INITIAL_SUPERVISORS);
+    if (!isOfficeAuthenticated) {
+      alert('🔒 শুধুমাত্র অফিস কর্তৃপক্ষ সুপারভাইজার তালিকা পরিবর্তন করতে পারবে। অনুগ্রহ করে অফিস পিন দিয়ে লগইন করুন।');
+      setShowPinModal(true);
+      return;
+    }
+    // PRESERVE updated mobile numbers as specifically instructed by user
+    setSupervisors((prev) =>
+      INITIAL_SUPERVISORS.map((init) => {
+        const existing = prev.find((p) => p.id === init.id || p.name === init.name);
+        return {
+          ...init,
+          phone: existing?.phone || init.phone,
+        };
+      })
+    );
   };
 
-  // Reset to initial demo data
+  // Reset to initial demo data (Office Authority only)
   const handleResetData = () => {
+    if (!isOfficeAuthenticated) {
+      alert('🔒 শুধুমাত্র অফিস কর্তৃপক্ষ পুরো সিস্টেম ডাটা রিসেট বা পরিবর্তন করতে পারবে। অনুগ্রহ করে অফিস পিন দিয়ে লগইন করুন।');
+      setShowPinModal(true);
+      return;
+    }
     if (
       window.confirm(
-        'আপনি কি নিশ্চিত যে নির্ধারিত ১০ জন সুপারভাইজার ও ডেমো ডেটা পুনরায় লোড করতে চান?'
+        'আপনি কি নিশ্চিত যে নির্ধারিত ১০ জন সুপারভাইজার ও ডেমো ডেটা পুনরায় লোড করতে চান? (সুপারভাইজারদের আপডেটকৃত ফোন নম্বর অক্ষত থাকবে)'
       )
     ) {
-      setSupervisors(INITIAL_SUPERVISORS);
+      setSupervisors((prev) =>
+        INITIAL_SUPERVISORS.map((init) => {
+          const existing = prev.find((p) => p.id === init.id || p.name === init.name);
+          return {
+            ...init,
+            phone: existing?.phone || init.phone,
+          };
+        })
+      );
       setAttendanceData(getInitialAttendanceData(currentYear, currentMonth));
       setPendingSubmissions(getInitialPendingSubmissions());
       setOfficePin(DEFAULT_OFFICE_PIN);
-      localStorage.removeItem(STORAGE_KEY_SUPERVISORS);
       localStorage.removeItem(STORAGE_KEY_ATTENDANCE);
       localStorage.removeItem(STORAGE_KEY_PENDING);
       localStorage.removeItem(STORAGE_KEY_PIN);
-      alert('সফলভাবে মূল ১০ জন সুপারভাইজার ও ডিফল্ট পিন (1234) রিস্টোর করা হয়েছে।');
+      alert('সফলভাবে মূল ১০ জন সুপারভাইজার ও ডিফল্ট পিন (1234) রিস্টোর করা হয়েছে (ফোন নম্বর সংরক্ষিত রাখা হয়েছে)।');
     }
   };
 
@@ -311,13 +348,9 @@ export default function App() {
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
             isOfficeAuthenticated={isOfficeAuthenticated}
-            onOpenOfficeLogin={() => {
-              if (isOfficeAuthenticated) {
-                setActiveTab('approval');
-              } else {
-                setShowPinModal(true);
-              }
-            }}
+            onOpenOfficeLogin={() => setShowPinModal(true)}
+            onVerifyOfficePin={handleVerifyPin}
+            onLogoutOffice={handleLogoutOffice}
             pendingCount={pendingSubmissions.length}
           />
         )}
@@ -363,6 +396,8 @@ export default function App() {
             attendanceData={attendanceData}
             supervisors={supervisors}
             onSelectDateToEdit={handleSelectDateToEdit}
+            isOfficeAuthenticated={isOfficeAuthenticated}
+            onOpenOfficeLogin={() => setShowPinModal(true)}
           />
         )}
 
@@ -374,6 +409,8 @@ export default function App() {
             onUpdateSupervisor={handleUpdateSupervisor}
             onDeleteSupervisor={handleDeleteSupervisor}
             onResetToDefaults={handleResetToDefaultSupervisors}
+            isOfficeAuthenticated={isOfficeAuthenticated}
+            onOpenOfficeLogin={() => setShowPinModal(true)}
           />
         )}
 

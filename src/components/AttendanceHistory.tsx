@@ -21,18 +21,27 @@ interface AttendanceHistoryProps {
   attendanceData: Record<string, DayAttendance>;
   supervisors: Supervisor[];
   onSelectDateToEdit: (date: string) => void;
+  isOfficeAuthenticated?: boolean;
+  onOpenOfficeLogin?: () => void;
 }
 
 export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   attendanceData,
   supervisors,
   onSelectDateToEdit,
+  isOfficeAuthenticated = false,
+  onOpenOfficeLogin,
 }) => {
   const [filterMonth, setFilterMonth] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Sorted list of recorded dates (newest first)
-  const sortedDates = Object.keys(attendanceData).sort((a, b) => b.localeCompare(a));
+  // Sorted list of approved recorded dates (newest first)
+  const sortedDates = Object.keys(attendanceData)
+    .filter((dateKey) => {
+      const rec = attendanceData[dateKey];
+      return rec && (rec.approvalStatus === 'approved' || !rec.approvalStatus);
+    })
+    .sort((a, b) => b.localeCompare(a));
 
   const filteredDates = sortedDates.filter((dateStr) => {
     if (filterMonth !== 'all') {
@@ -42,7 +51,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
     }
     if (searchTerm.trim()) {
       const dayRecord = attendanceData[dateStr];
-      const matchSubmitter = dayRecord.submittedBy?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSubmitter = dayRecord?.submittedBy?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchDate = dateStr.includes(searchTerm);
       if (!matchSubmitter && !matchDate) return false;
     }
@@ -65,6 +74,21 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {isOfficeAuthenticated ? (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>অফিস অথরিটি সক্রিয়</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenOfficeLogin}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <span>🔒 পরিবর্তন শুধু অফিস কর্তৃপক্ষের</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-slate-600" />
               <label htmlFor="select-history-month" className="sr-only">মাস ফিল্টার</label>
@@ -101,8 +125,25 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
       {/* History Records List */}
       <div className="space-y-3">
         {filteredDates.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-600">
-            কোনো সংরক্ষিত হাজিরা রেকর্ড পাওয়া যায়নি।
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center shadow-xs space-y-3">
+            <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center mx-auto border border-cyan-200">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800">
+              বর্তমানে কোনো অনুমোদিত হাজিরা রেকর্ড নেই
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              আপনি ১ সেপ্টেম্বর থেকে প্রতিদিনের হাজিরা ফরম পূরণ করে &quot;অফিস অনুমোদনের জন্য জমা দিন&quot; বাটনে ক্লিক করুন। অফিস কর্তৃপক্ষ অনুমোদন করলেই তা এখানে বিস্তারিত ইতিহাস হিসেবে যুক্ত হবে।
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onSelectDateToEdit('2026-09-01')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <span>📅 ১ সেপ্টেম্বর থেকে হাজিরা পূরণ শুরু করুন</span>
+              </button>
+            </div>
           </div>
         ) : (
           filteredDates.map((dateStr) => {
@@ -173,10 +214,14 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                     id={`btn-edit-history-${dateStr}`}
                     type="button"
                     onClick={() => onSelectDateToEdit(dateStr)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      isOfficeAuthenticated
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        : 'bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200'
+                    }`}
                   >
                     <Edit className="w-3.5 h-3.5" />
-                    <span>হাজিরা দেখুন / এডিট</span>
+                    <span>{isOfficeAuthenticated ? 'হাজিরা সংশোধন / পরিবর্তন' : 'হাজিরা রেকর্ড দেখুন'}</span>
                     <ArrowRight className="w-3 h-3 ml-0.5" />
                   </button>
                 </div>
