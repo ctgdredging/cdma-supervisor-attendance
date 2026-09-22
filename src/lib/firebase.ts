@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
+  initializeFirestore,
   collection,
   doc,
   setDoc,
@@ -17,12 +18,37 @@ import firebaseConfig from '../../firebase-applet-config.json';
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with specific database ID if configured
-export const db =
+// Initialize Firestore with specific database ID if configured and auto-detect long polling for iframe resilience
+const targetDbId =
   firebaseConfig.firestoreDatabaseId &&
   firebaseConfig.firestoreDatabaseId !== '(default)'
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app);
+    ? firebaseConfig.firestoreDatabaseId
+    : undefined;
+
+let firestoreInstance: ReturnType<typeof getFirestore>;
+try {
+  firestoreInstance = targetDbId
+    ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, targetDbId)
+    : initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+} catch {
+  firestoreInstance = targetDbId ? getFirestore(app, targetDbId) : getFirestore(app);
+}
+
+export const db = firestoreInstance;
+
+// Helper to detect benign abort or cancelled errors
+export function isAbortOrCancelledError(err: unknown): boolean {
+  if (!err) return false;
+  const e = err as { name?: string; message?: string; code?: string };
+  const msg = (e.message || String(err)).toLowerCase();
+  return (
+    e.name === 'AbortError' ||
+    e.code === 'cancelled' ||
+    msg.includes('user aborted') ||
+    msg.includes('aborted') ||
+    msg.includes('canceled')
+  );
+}
 
 // Helper to remove undefined fields which Firestore rejects
 function cleanForFirestore<T>(data: T): T {
@@ -60,7 +86,8 @@ export const subscribeToAttendanceRecords = (
       onData(records);
     },
     (err) => {
-      console.warn('Firestore attendance subscription error:', err);
+      if (isAbortOrCancelledError(err)) return;
+      console.warn('Firestore attendance subscription notice:', err);
       if (onError) onError(err);
     }
   );
@@ -78,6 +105,7 @@ export const saveAttendanceToCloud = async (
     });
     await setDoc(docRef, cleaned, { merge: true });
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.error(`Failed to save attendance for ${date} to cloud:`, err);
     throw err;
   }
@@ -107,7 +135,8 @@ export const subscribeToPendingSubmissions = (
       onData(list);
     },
     (err) => {
-      console.warn('Firestore pending submissions subscription error:', err);
+      if (isAbortOrCancelledError(err)) return;
+      console.warn('Firestore pending submissions subscription notice:', err);
       if (onError) onError(err);
     }
   );
@@ -121,6 +150,7 @@ export const savePendingSubmissionToCloud = async (
     const cleaned = cleanForFirestore(submission);
     await setDoc(docRef, cleaned);
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.error('Failed to save pending submission to cloud:', err);
     throw err;
   }
@@ -131,6 +161,7 @@ export const removePendingSubmissionFromCloud = async (id: string): Promise<void
     const docRef = doc(db, 'pending_submissions', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.error(`Failed to remove pending submission ${id} from cloud:`, err);
     throw err;
   }
@@ -164,7 +195,8 @@ export const subscribeToSupervisors = (
       }
     },
     (err) => {
-      console.warn('Firestore supervisors subscription error:', err);
+      if (isAbortOrCancelledError(err)) return;
+      console.warn('Firestore supervisors subscription notice:', err);
       if (onError) onError(err);
     }
   );
@@ -176,6 +208,7 @@ export const saveSupervisorToCloud = async (supervisor: Supervisor): Promise<voi
     const cleaned = cleanForFirestore(supervisor);
     await setDoc(docRef, cleaned, { merge: true });
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.error(`Failed to save supervisor ${supervisor.id} to cloud:`, err);
     throw err;
   }
@@ -197,6 +230,7 @@ export const seedInitialSupervisorsToCloud = async (
       console.log('Seeded initial supervisors to Firebase Cloud');
     }
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.warn('Failed to seed supervisors to cloud (will retry):', err);
   }
 };
@@ -220,6 +254,7 @@ export const subscribeToOfficeSettings = (
       }
     },
     (err) => {
+      if (isAbortOrCancelledError(err)) return;
       console.warn('Office settings subscription warning:', err);
     }
   );
@@ -230,6 +265,7 @@ export const saveOfficePinToCloud = async (pin: string): Promise<void> => {
     const docRef = doc(db, 'app_settings', 'office_config');
     await setDoc(docRef, { officePin: pin, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
+    if (isAbortOrCancelledError(err)) return;
     console.error('Failed to save office PIN to cloud:', err);
   }
 };

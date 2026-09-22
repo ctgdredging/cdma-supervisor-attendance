@@ -329,5 +329,12 @@ export function generateWhatsAppReportText(
 export function openWhatsAppShare(text: string) {
   const encoded = encodeURIComponent(text);
   const url = `https://api.whatsapp.com/send?text=${encoded}`;
-  window.open(url, '_blank');
+  try {
+    const newWin = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!newWin) {
+      window.location.href = url;
+    }
+  } catch {
+    window.location.href = url;
+  }
 }

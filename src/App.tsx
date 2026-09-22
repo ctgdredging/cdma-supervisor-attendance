@@ -124,12 +124,17 @@ export default function App() {
   // REAL-TIME FIREBASE FIRESTORE SYNC LISTENERS
   // ==========================================
   useEffect(() => {
+    let isSubscribed = true;
+
     // 1. Seed default supervisors to cloud if database is currently empty
-    seedInitialSupervisorsToCloud(INITIAL_SUPERVISORS);
+    seedInitialSupervisorsToCloud(INITIAL_SUPERVISORS).catch((err) => {
+      console.warn('Seed supervisors notice:', err);
+    });
 
     // 2. Real-time listener for approved attendance records
     const unsubAttendance = subscribeToAttendanceRecords(
       (cloudRecords) => {
+        if (!isSubscribed) return;
         setIsCloudConnected(true);
         if (Object.keys(cloudRecords).length > 0) {
           setAttendanceData((prev) => ({
@@ -146,6 +151,7 @@ export default function App() {
     // 3. Real-time listener for pending attendance submissions from field supervisors
     const unsubPending = subscribeToPendingSubmissions(
       (cloudPending) => {
+        if (!isSubscribed) return;
         setIsCloudConnected(true);
         setPendingSubmissions(cloudPending);
       },
@@ -157,6 +163,7 @@ export default function App() {
     // 4. Real-time listener for supervisor profiles
     const unsubSupervisors = subscribeToSupervisors(
       (cloudSupervisors) => {
+        if (!isSubscribed) return;
         setIsCloudConnected(true);
         if (cloudSupervisors.length > 0) {
           setSupervisors(cloudSupervisors);
@@ -169,22 +176,47 @@ export default function App() {
 
     // 5. Real-time listener for office settings & PIN
     const unsubSettings = subscribeToOfficeSettings((cloudPin) => {
+      if (!isSubscribed) return;
       if (cloudPin) {
         setOfficePin(cloudPin);
       }
     });
 
     return () => {
-      unsubAttendance();
-      unsubPending();
-      unsubSupervisors();
-      unsubSettings();
+      isSubscribed = false;
+      try {
+        unsubAttendance();
+      } catch {
+        // Safe ignore
+      }
+      try {
+        unsubPending();
+      } catch {
+        // Safe ignore
+      }
+      try {
+        unsubSupervisors();
+      } catch {
+        // Safe ignore
+      }
+      try {
+        unsubSettings();
+      } catch {
+        // Safe ignore
+      }
     };
   }, []);
 
   // One-time auto-upload existing PC local storage records into Firebase Firestore
   // (Ensures any previous attendance you saved on PC is immediately available on Mobile)
   useEffect(() => {
+    let isCancelled = false;
+    const MIGRATION_FLAG = 'cdma_local_records_synced_v1';
+
+    if (localStorage.getItem(MIGRATION_FLAG)) {
+      return;
+    }
+
     const migrateLocalToCloud = async () => {
       try {
         const saved = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
@@ -193,17 +225,27 @@ export default function App() {
           const dates = Object.keys(localRecords);
           if (dates.length > 0) {
             for (const d of dates) {
+              if (isCancelled) return;
               if (localRecords[d] && Object.keys(localRecords[d].records || {}).length > 0) {
-                await saveAttendanceToCloud(d, localRecords[d]);
+                await saveAttendanceToCloud(d, localRecords[d]).catch((err) => {
+                  console.warn(`Sync skipped for ${d}:`, err);
+                });
               }
             }
           }
+        }
+        if (!isCancelled) {
+          localStorage.setItem(MIGRATION_FLAG, 'true');
         }
       } catch (e) {
         console.warn('Local-to-cloud migration notice:', e);
       }
     };
     migrateLocalToCloud();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   // Persist supervisors locally as fallback cache

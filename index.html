@@ -39,6 +39,30 @@
         } catch (e) {
           // Continue execution safely
         }
+
+        // Suppress benign unhandled abort exceptions (e.g. from aborted fetch or Firestore listeners)
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event && event.reason;
+          var msg = (reason && (reason.message || reason.name || String(reason))) || '';
+          if (
+            (reason && reason.name === 'AbortError') ||
+            msg.indexOf('The user aborted a request') !== -1 ||
+            msg.indexOf('aborted') !== -1 ||
+            msg.indexOf('cancelled') !== -1
+          ) {
+            event.preventDefault();
+          }
+        });
+
+        window.addEventListener('error', function(event) {
+          var msg = (event && (event.message || '')) || '';
+          if (
+            msg.indexOf('The user aborted a request') !== -1 ||
+            msg.indexOf('AbortError') !== -1
+          ) {
+            event.preventDefault();
+          }
+        });
       })();
     </script>
     <div id="root"></div>
