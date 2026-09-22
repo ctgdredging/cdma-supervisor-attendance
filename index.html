@@ -21,6 +21,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body class="bg-slate-50 text-slate-800 font-['Hind_Siliguri',sans-serif] antialiased">
+    <script>
+      // Defensive guard for environments (like sandboxed iframes) where window.fetch is getter-only.
+      // Allows libraries attempting `window.fetch = ...` or `globalThis.fetch = ...` to safely redefine it.
+      (function() {
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch') || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(window), 'fetch');
+          if (desc && !desc.writable && !desc.set) {
+            var currentFetch = window.fetch;
+            Object.defineProperty(window, 'fetch', {
+              get: function() { return currentFetch; },
+              set: function(val) { currentFetch = val; },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          // Continue execution safely
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
