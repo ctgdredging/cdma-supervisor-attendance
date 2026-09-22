@@ -36,9 +36,13 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   attendanceData,
   onClose,
 }) => {
-  const [reportType, setReportType] = useState<WhatsAppReportType>('executive');
+  const [reportType, setReportType] = useState<WhatsAppReportType>('monthly_cumulative');
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  const [, monthStr, dayStr] = selectedDate.split('-');
+  const currentDayNum = parseInt(dayStr, 10);
+  const monthIndex = parseInt(monthStr, 10) - 1;
 
   // Use current window location without query params for share link
   const currentUrl = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
@@ -120,42 +124,45 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           {/* Template Switcher */}
           <div className="bg-slate-100 p-1.5 rounded-xl flex flex-wrap sm:flex-nowrap gap-1 border border-slate-200">
             <button
+              id="btn-wa-type-monthly"
               type="button"
-              onClick={() => setReportType('executive')}
+              onClick={() => setReportType('monthly_cumulative')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                reportType === 'executive'
-                  ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
+                reportType === 'monthly_cumulative'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 bg-white/70'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>👑 এক্সিকিউটিভ পূর্ণাঙ্গ ফরম্যাট</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>📊 ১ হতে {toBengaliNumber(currentDayNum)} তারিখের মাসিক পূর্ণাঙ্গ রিপোর্ট</span>
             </button>
 
             <button
+              id="btn-wa-type-summary"
               type="button"
-              onClick={() => setReportType('compact')}
+              onClick={() => setReportType('monthly_summary')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                reportType === 'compact'
-                  ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
+                reportType === 'monthly_summary'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 bg-white/70'
               }`}
             >
-              <FileText className="w-3.5 h-3.5 text-cyan-600" />
-              <span>⚡ দ্রুত সারসংক্ষেপ</span>
+              <FileText className="w-3.5 h-3.5" />
+              <span>⚡ মাসিক সংক্ষিপ্ত সারসংক্ষেপ</span>
             </button>
 
             <button
+              id="btn-wa-type-audit"
               type="button"
               onClick={() => setReportType('deduction_audit')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 reportType === 'deduction_audit'
-                  ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 bg-white/70'
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-              <span>⚠️ অনুপস্থিতি ও কর্তন অডিট</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              <span>⚠️ মাসিক কর্তন অডিট</span>
             </button>
           </div>
 

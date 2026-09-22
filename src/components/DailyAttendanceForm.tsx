@@ -523,7 +523,7 @@ export const DailyAttendanceForm: React.FC<DailyAttendanceFormProps> = ({
         </div>
       </div>
 
-      {/* Existing Saved Notice (Non-blocking informative banner) */}
+      {/* Existing Saved Notice */}
       {isExistingSaved && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -536,7 +536,9 @@ export const DailyAttendanceForm: React.FC<DailyAttendanceFormProps> = ({
               </h4>
               <p className="text-xs text-emerald-800 mt-0.5">
                 প্রস্তুতকারী: <strong>{attendanceData[selectedDate]?.submittedBy || 'অফিস'}</strong> | অনুমোদিত: {attendanceData[selectedDate]?.approvedBy || 'অফিস কর্তৃপক্ষ'}।
-                প্রয়োজনে তথ্য পরিবর্তন করে পুনরায় অনুমোদনের জন্য জমা দিতে পারেন।
+                {isOfficeAuthenticated
+                  ? ' অফিস কর্তৃপক্ষ হিসেবে আপনি যেকোনো রেকর্ড পরিবর্তন বা সংশোধন করতে পারবেন।'
+                  : ' এটি চূড়ান্ত অনুমোদিত রেকর্ড। সুপারভাইজারগণ শুধুমাত্র তাদের দৈনিক হাজিরা অনুমোদনের জন্য দাখিল করতে পারবেন, চূড়ান্ত তথ্য সরাসরি পরিবর্তনের অধিকার অফিস কর্তৃপক্ষের সংরক্ষিত।'}
               </p>
             </div>
           </div>

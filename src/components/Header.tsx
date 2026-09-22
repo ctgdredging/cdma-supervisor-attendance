@@ -135,21 +135,10 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenWhatsAppModal}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-              title="হোয়াটসঅ্যাপে আজকের হাজিরা রিপোর্ট পাঠান"
+              title="হোয়াটসঅ্যাপে মাসিক হাজিরা রিপোর্ট পাঠান"
             >
               <Send className="w-3.5 h-3.5" />
               <span>হোয়াটসঅ্যাপ রিপোর্ট</span>
-            </button>
-
-            <button
-              id="btn-header-github"
-              type="button"
-              onClick={onOpenGitHubModal}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="GitHub.io তে লাইভ করার নির্দেশিকা"
-            >
-              <Github className="w-3.5 h-3.5 text-white" />
-              <span>GitHub.io</span>
             </button>
           </div>
         </div>
