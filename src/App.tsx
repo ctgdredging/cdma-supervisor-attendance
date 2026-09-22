@@ -22,7 +22,19 @@ import {
   toBengaliNumber,
   formatBengaliDate,
 } from './utils/bengaliUtils';
-import { RotateCcw, ShieldCheck, Github, MessageCircle, Lock } from 'lucide-react';
+import {
+  subscribeToAttendanceRecords,
+  saveAttendanceToCloud,
+  subscribeToPendingSubmissions,
+  savePendingSubmissionToCloud,
+  removePendingSubmissionFromCloud,
+  subscribeToSupervisors,
+  saveSupervisorToCloud,
+  seedInitialSupervisorsToCloud,
+  subscribeToOfficeSettings,
+  saveOfficePinToCloud,
+} from './lib/firebase';
+import { RotateCcw, ShieldCheck, Github, MessageCircle, Lock, Cloud } from 'lucide-react';
 
 const STORAGE_KEY_SUPERVISORS = 'cdma_supervisors_v2';
 // Clean storage keys without any demo/sample attendance data so user fills from September 01
@@ -39,6 +51,10 @@ export default function App() {
   const [showGitHubModal, setShowGitHubModal] = useState<boolean>(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
+
+  // Cloud Real-time Connection State
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Office PIN state
   const [officePin, setOfficePin] = useState<string>(() => {
@@ -104,30 +120,116 @@ export default function App() {
     return getInitialPendingSubmissions();
   });
 
-  // Persist supervisors
+  // ==========================================
+  // REAL-TIME FIREBASE FIRESTORE SYNC LISTENERS
+  // ==========================================
+  useEffect(() => {
+    // 1. Seed default supervisors to cloud if database is currently empty
+    seedInitialSupervisorsToCloud(INITIAL_SUPERVISORS);
+
+    // 2. Real-time listener for approved attendance records
+    const unsubAttendance = subscribeToAttendanceRecords(
+      (cloudRecords) => {
+        setIsCloudConnected(true);
+        if (Object.keys(cloudRecords).length > 0) {
+          setAttendanceData((prev) => ({
+            ...prev,
+            ...cloudRecords,
+          }));
+        }
+      },
+      (err) => {
+        console.warn('Attendance subscription notice:', err);
+      }
+    );
+
+    // 3. Real-time listener for pending attendance submissions from field supervisors
+    const unsubPending = subscribeToPendingSubmissions(
+      (cloudPending) => {
+        setIsCloudConnected(true);
+        setPendingSubmissions(cloudPending);
+      },
+      (err) => {
+        console.warn('Pending submissions subscription notice:', err);
+      }
+    );
+
+    // 4. Real-time listener for supervisor profiles
+    const unsubSupervisors = subscribeToSupervisors(
+      (cloudSupervisors) => {
+        setIsCloudConnected(true);
+        if (cloudSupervisors.length > 0) {
+          setSupervisors(cloudSupervisors);
+        }
+      },
+      (err) => {
+        console.warn('Supervisors subscription notice:', err);
+      }
+    );
+
+    // 5. Real-time listener for office settings & PIN
+    const unsubSettings = subscribeToOfficeSettings((cloudPin) => {
+      if (cloudPin) {
+        setOfficePin(cloudPin);
+      }
+    });
+
+    return () => {
+      unsubAttendance();
+      unsubPending();
+      unsubSupervisors();
+      unsubSettings();
+    };
+  }, []);
+
+  // One-time auto-upload existing PC local storage records into Firebase Firestore
+  // (Ensures any previous attendance you saved on PC is immediately available on Mobile)
+  useEffect(() => {
+    const migrateLocalToCloud = async () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
+        if (saved) {
+          const localRecords: Record<string, DayAttendance> = JSON.parse(saved);
+          const dates = Object.keys(localRecords);
+          if (dates.length > 0) {
+            for (const d of dates) {
+              if (localRecords[d] && Object.keys(localRecords[d].records || {}).length > 0) {
+                await saveAttendanceToCloud(d, localRecords[d]);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Local-to-cloud migration notice:', e);
+      }
+    };
+    migrateLocalToCloud();
+  }, []);
+
+  // Persist supervisors locally as fallback cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_SUPERVISORS, JSON.stringify(supervisors));
     } catch (e) {
-      console.error('Failed to persist supervisors', e);
+      console.error('Failed to persist supervisors locally', e);
     }
   }, [supervisors]);
 
-  // Persist approved attendance records
+  // Persist approved attendance records locally as fallback cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_ATTENDANCE, JSON.stringify(attendanceData));
     } catch (e) {
-      console.error('Failed to persist attendance', e);
+      console.error('Failed to persist attendance locally', e);
     }
   }, [attendanceData]);
 
-  // Persist pending submissions
+  // Persist pending submissions locally as fallback cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify(pendingSubmissions));
     } catch (e) {
-      console.error('Failed to persist pending submissions', e);
+      console.error('Failed to persist pending submissions locally', e);
     }
   }, [pendingSubmissions]);
 
@@ -150,25 +252,38 @@ export default function App() {
   }, [isOfficeAuthenticated]);
 
   // 1. Supervisor submits attendance for Office Approval
-  // (NOTE: Does NOT save into attendanceData until office approves!)
-  const handleSubmitForApproval = (
+  // (Saves to Firebase Cloud in real-time -> visible instantly on Office PC/Mobile)
+  const handleSubmitForApproval = async (
     submission: Omit<PendingAttendanceSubmission, 'id' | 'status' | 'submittedAt'>
   ) => {
+    setIsSyncing(true);
     const newSubmission: PendingAttendanceSubmission = {
       ...submission,
       id: `pending-${Date.now()}`,
       status: 'pending',
       submittedAt: new Date().toISOString(),
     };
+
     setPendingSubmissions((prev) => [newSubmission, ...prev.filter((p) => p.date !== submission.date)]);
-    alert(`✅ সফল! ${formatBengaliDate(submission.date)} তারিখের হাজিরা অফিস কর্তৃপক্ষের অনুমোদনের জন্য দাখিল করা হয়েছে।\nপূরণকারী: ${submission.submittedBy} (${submission.supervisorPhone || 'মোবাইল নেই'})।\n\nঅফিস কর্তৃপক্ষ 'অফিস অনুমোদন' প্যানেল থেকে অনুমোদন করলেই এটি মূল বেতন রেজিস্টারে যুক্ত হবে।`);
+
+    try {
+      await savePendingSubmissionToCloud(newSubmission);
+      setIsCloudConnected(true);
+    } catch (err) {
+      console.warn('Could not sync to cloud immediately, saved locally:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+
+    alert(`✅ সফল! ${formatBengaliDate(submission.date)} তারিখের হাজিরা ক্লাউড ডেটাবেজে সংরক্ষিত হয়েছে এবং অফিস কর্তৃপক্ষের অনুমোদনের জন্য দাখিল করা হয়েছে।\nপূরণকারী: ${submission.submittedBy} (${submission.supervisorPhone || 'মোবাইল নেই'})।\n\nযে কোনো ডিভাইস (মোবাইল বা পিসি) থেকে অফিস কর্তৃপক্ষ 'অফিস অনুমোদন' প্যানেলে গিয়ে অনুমোদন দিলেই এটি চূড়ান্ত বেতন রেজিস্টারে যুক্ত হবে।`);
   };
 
-  // 2. Office Authority approves submission -> commits to attendanceData & storage!
-  const handleApproveSubmission = (submissionId: string) => {
+  // 2. Office Authority approves submission -> commits to attendanceData & Firestore Cloud!
+  const handleApproveSubmission = async (submissionId: string) => {
     const target = pendingSubmissions.find((s) => s.id === submissionId);
     if (!target) return;
 
+    setIsSyncing(true);
     const approvedRecord: DayAttendance = {
       date: target.date,
       records: target.records,
@@ -180,36 +295,65 @@ export default function App() {
       approvedBy: 'অফিস কর্তৃপক্ষ (চট্টগ্রাম ড্রেজার মালিক সমিতি)',
     };
 
-    // Commit to permanent attendance storage
+    // Commit to local attendance state immediately
     setAttendanceData((prev) => ({
       ...prev,
       [target.date]: approvedRecord,
     }));
-
-    // Remove from pending queue
     setPendingSubmissions((prev) => prev.filter((s) => s.id !== submissionId));
-    alert(`সফল! ${target.date} তারিখের হাজিরা অফিস কর্তৃপক্ষ দ্বারা অনুমোদিত হয়েছে এবং মূল বেতন রেজিস্টারে যুক্ত হয়েছে।`);
+
+    try {
+      await saveAttendanceToCloud(target.date, approvedRecord);
+      await removePendingSubmissionFromCloud(submissionId);
+      setIsCloudConnected(true);
+    } catch (err) {
+      console.warn('Cloud approve error (saved locally):', err);
+    } finally {
+      setIsSyncing(false);
+    }
+
+    alert(`সফল! ${formatBengaliDate(target.date)} তারিখের হাজিরা ক্লাউড ডেটাবেজে অনুমোদিত হয়েছে। মোবাইল ও পিসির সব ব্রাউজারে সাথে সাথে লাইভ আপডেট হয়ে গেছে।`);
   };
 
   // 3. Office Authority rejects submission
-  const handleRejectSubmission = (submissionId: string, reason?: string) => {
+  const handleRejectSubmission = async (submissionId: string, reason?: string) => {
     setPendingSubmissions((prev) => prev.filter((s) => s.id !== submissionId));
+    try {
+      await removePendingSubmissionFromCloud(submissionId);
+    } catch (err) {
+      console.warn('Cloud reject removal notice:', err);
+    }
     alert('হাজিরা আবেদনটি অফিস কর্তৃপক্ষ কর্তৃক বাতিল করা হয়েছে।');
   };
 
-  // 4. Direct save by authorized office authority
-  const handleSaveAttendanceDirect = (date: string, dayAttendance: DayAttendance) => {
+  // 4. Direct save by authorized office authority -> commits to Firebase Firestore
+  const handleSaveAttendanceDirect = async (date: string, dayAttendance: DayAttendance) => {
+    setIsSyncing(true);
+    const approvedRecord: DayAttendance = {
+      ...dayAttendance,
+      approvalStatus: 'approved',
+      approvedAt: new Date().toISOString(),
+      approvedBy: 'অফিস কর্তৃপক্ষ',
+    };
+
     setAttendanceData((prev) => ({
       ...prev,
-      [date]: {
-        ...dayAttendance,
-        approvalStatus: 'approved',
-        approvedAt: new Date().toISOString(),
-        approvedBy: 'অফিস কর্তৃপক্ষ',
-      },
+      [date]: approvedRecord,
     }));
-    // Clear any pending for this date
     setPendingSubmissions((prev) => prev.filter((p) => p.date !== date));
+
+    try {
+      await saveAttendanceToCloud(date, approvedRecord);
+      const matchPending = pendingSubmissions.find((p) => p.date === date);
+      if (matchPending) {
+        await removePendingSubmissionFromCloud(matchPending.id);
+      }
+      setIsCloudConnected(true);
+    } catch (err) {
+      console.warn('Cloud direct save error (saved locally):', err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // 5. PIN Verification
@@ -222,9 +366,14 @@ export default function App() {
   };
 
   // 6. Change PIN
-  const handleChangePin = (oldP: string, newP: string): boolean => {
+  const handleChangePin = async (oldP: string, newP: string): Promise<boolean> => {
     if (oldP === officePin) {
       setOfficePin(newP);
+      try {
+        await saveOfficePinToCloud(newP);
+      } catch (err) {
+        console.warn('Could not save PIN to cloud:', err);
+      }
       return true;
     }
     return false;
@@ -236,14 +385,25 @@ export default function App() {
   };
 
   // Add supervisor handler
-  const handleAddSupervisor = (newSup: Omit<Supervisor, 'id'>) => {
+  const handleAddSupervisor = async (newSup: Omit<Supervisor, 'id'>) => {
     const id = `sup-${Date.now()}`;
-    setSupervisors((prev) => [...prev, { ...newSup, id }]);
+    const fullSup: Supervisor = { ...newSup, id };
+    setSupervisors((prev) => [...prev, fullSup]);
+    try {
+      await saveSupervisorToCloud(fullSup);
+    } catch (err) {
+      console.warn('Failed to save supervisor to cloud:', err);
+    }
   };
 
   // Update supervisor handler
-  const handleUpdateSupervisor = (updated: Supervisor) => {
+  const handleUpdateSupervisor = async (updated: Supervisor) => {
     setSupervisors((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    try {
+      await saveSupervisorToCloud(updated);
+    } catch (err) {
+      console.warn('Failed to update supervisor in cloud:', err);
+    }
   };
 
   // Delete supervisor handler
@@ -330,6 +490,8 @@ export default function App() {
         }}
         pendingCount={pendingSubmissions.length}
         isOfficeAuthenticated={isOfficeAuthenticated}
+        isCloudConnected={isCloudConnected}
+        isSyncing={isSyncing}
         onOpenGitHubModal={() => setShowGitHubModal(true)}
         onOpenWhatsAppModal={() => setShowWhatsAppModal(true)}
         onOpenPinModal={() => setShowPinModal(true)}

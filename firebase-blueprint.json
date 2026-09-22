@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "attendance_records": {
+      "title": "Attendance Record",
+      "description": "Daily supervisor attendance record for Chittagong Dredger Owners Association",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Attendance date in YYYY-MM-DD format"
+        },
+        "records": {
+          "type": "object",
+          "description": "Map of supervisorId to AttendanceEntry"
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "Timestamp when attendance was submitted"
+        },
+        "submittedBy": {
+          "type": "string",
+          "description": "Name of submitter or office authority"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or work remarks"
+        },
+        "approvalStatus": {
+          "type": "string",
+          "enum": ["approved", "pending"],
+          "description": "Approval status of the daily attendance"
+        },
+        "approvedAt": {
+          "type": "string",
+          "description": "Timestamp when approved by office"
+        },
+        "approvedBy": {
+          "type": "string",
+          "description": "Name or designation of approver"
+        }
+      },
+      "required": ["date", "records"]
+    },
+    "pending_submissions": {
+      "title": "Pending Attendance Submission",
+      "description": "Attendance submitted by field supervisor awaiting office approval",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique submission ID"
+        },
+        "date": {
+          "type": "string",
+          "description": "Attendance date in YYYY-MM-DD format"
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "Submission timestamp"
+        },
+        "submittedBy": {
+          "type": "string",
+          "description": "Name of supervisor who submitted"
+        },
+        "supervisorPhone": {
+          "type": "string",
+          "description": "Phone number of submitter"
+        },
+        "records": {
+          "type": "object",
+          "description": "Map of supervisorId to AttendanceEntry"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional remarks"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Current status"
+        }
+      },
+      "required": ["id", "date", "submittedBy", "records", "status"]
+    },
+    "supervisors": {
+      "title": "Supervisor",
+      "description": "Dredger supervisor profile and contact information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string", "enum": ["গ্রুপ-এ", "গ্রুপ-বি"] },
+        "designation": { "type": "string" },
+        "phone": { "type": "string" },
+        "baseSalary": { "type": "number" },
+        "joinDate": { "type": "string" }
+      },
+      "required": ["id", "name", "group", "phone", "baseSalary"]
+    },
+    "app_settings": {
+      "title": "App Settings",
+      "description": "Office PIN and system configurations",
+      "type": "object",
+      "properties": {
+        "officePin": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["officePin"]
+    }
+  }
+}

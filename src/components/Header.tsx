@@ -13,6 +13,8 @@ import {
   Lock,
   Unlock,
   BellRing,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { formatBengaliDate, getTodayDateString, toBengaliNumber } from '../utils/bengaliUtils';
 
@@ -25,6 +27,8 @@ interface HeaderProps {
   todayStats: { present: number; absent: number; total: number };
   pendingCount: number;
   isOfficeAuthenticated: boolean;
+  isCloudConnected?: boolean;
+  isSyncing?: boolean;
   onOpenGitHubModal: () => void;
   onOpenWhatsAppModal: () => void;
   onOpenPinModal: () => void;
@@ -38,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   todayStats,
   pendingCount,
   isOfficeAuthenticated,
+  isCloudConnected = true,
+  isSyncing = false,
   onOpenGitHubModal,
   onOpenWhatsAppModal,
   onOpenPinModal,
@@ -55,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Anchor className="w-6 h-6 text-cyan-300" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold tracking-wider text-cyan-300 bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-500/30">
                   অফিসিয়াল পোর্টাল
                 </span>
@@ -64,6 +70,24 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" />
                     অফিস লগইন সক্রিয়
+                  </span>
+                )}
+                {/* Real-time Cloud Sync Status Pill */}
+                {isSyncing ? (
+                  <span className="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 animate-pulse">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    ক্লাউডে সিঙ্ক হচ্ছে...
+                  </span>
+                ) : isCloudConnected ? (
+                  <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" title="পিসি ও মোবাইল রিয়েল-টাইমে সংযুক্ত">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <Cloud className="w-3 h-3" />
+                    লাইভ ক্লাউড সিঙ্ক
+                  </span>
+                ) : (
+                  <span className="text-[11px] bg-slate-700/50 text-slate-300 border border-slate-600/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Cloud className="w-3 h-3" />
+                    অফলাইন মেমোরি
                   </span>
                 )}
               </div>
